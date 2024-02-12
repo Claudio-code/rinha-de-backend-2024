@@ -1,5 +1,6 @@
 package com.rinha.backend.controller;
 
+import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,7 +31,11 @@ public class ClientesController {
     @Transactional
     public Mono<TransacaoResponseDto> fazerTransacao(
             @PathVariable("id") @Valid final Integer clienteID,
-            @RequestBody @Valid final TransacaoRequestDto transacaoRequestDto) throws TipoErradoException {
+            @RequestBody @Valid final TransacaoRequestDto transacaoRequestDto)
+            throws TipoErradoException, NotFoundException {
+        if (clienteID < 1 || clienteID > 5) {
+            throw new NotFoundException();
+        }
         if (!TipoTransacao.isValidType(transacaoRequestDto.tipo()) ||
                 transacaoRequestDto.tipo().chars().count() > 1 ||
                 transacaoRequestDto.descricao().chars().count() > 10) {
@@ -40,7 +45,11 @@ public class ClientesController {
     }
 
     @GetMapping("{id}/extrato")
-    public Mono<ExtratoResponseDto> extrato(@PathVariable("id") @Valid final Integer clienteID) {
+    public Mono<ExtratoResponseDto> extrato(@PathVariable("id") @Valid final Integer clienteID)
+            throws NotFoundException {
+        if (clienteID < 1 || clienteID > 5) {
+            throw new NotFoundException();
+        }
         return service.extrato(clienteID);
     }
 }
