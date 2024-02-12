@@ -14,7 +14,7 @@ services:
     volumes:
       - rinha-db:/data/postgres
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    command: postgres -c checkpoint_timeout=600 -c max_wal_size=4096 -c log_min_messages=FATAL
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
     healthcheck:
       test: [ 'CMD', 'pg_isready' ]
       interval: 10s
@@ -42,7 +42,7 @@ services:
           memory: '50MB'
 
   api01: &api
-    image: claudio2424/rinha-spring:1.2
+    image: claudio2424/rinha-spring:latest
     hostname: api01
     ports:
       - "6969:6969"

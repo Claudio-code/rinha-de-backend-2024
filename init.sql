@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TABLE IF NOT EXISTS clientes (
 	id SERIAL PRIMARY KEY NOT NULL,
 	nome VARCHAR(100) NOT NULL,
@@ -29,4 +31,3 @@ CREATE TABLE IF NOT EXISTS transacoes (
 
 CREATE INDEX IF NOT EXISTS transacoes_clientes_id ON transacoes (cliente_id desc) INCLUDE (valor, tipo, descricao, realizada_em);
 
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
