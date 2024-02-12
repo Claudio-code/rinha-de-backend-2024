@@ -34,10 +34,9 @@ public class TransacaoService {
                 .valor(transacaoDto.valor())
                 .realizadaEm(Instant.now())
                 .build();
-        final var trasacaoPublisher = transacaoRepository.save(transacoes)
-            .subscribeOn(Schedulers.parallel());
+        final var trasacaoPublisher = transacaoRepository.save(transacoes).subscribeOn(Schedulers.parallel());
         return clientesRepository.findById(clienteID)
-                .subscribeOn(Schedulers.boundedElastic())
+                .subscribeOn(Schedulers.parallel())
                 .switchIfEmpty(Mono.error(new NotFoundException()))
                 .flatMap(cliente -> {
                     if (Objects.equals(TipoTransacao.CREDITO.getTipo(), transacaoDto.tipo())) {
@@ -58,7 +57,7 @@ public class TransacaoService {
     public Mono<ExtratoResponseDto> extrato(final int clienteID) {
         return clientesRepository.findById(clienteID)
                 .cache()
-                .subscribeOn(Schedulers.boundedElastic())
+                .subscribeOn(Schedulers.parallel())
                 .switchIfEmpty(Mono.error(new NotFoundException()))
                 .map(cliente -> ExtratoResponseDto.builder()
                         .saldo(ExtratoResponseDto.ExtratoSaldoDto.builder()
@@ -68,7 +67,7 @@ public class TransacaoService {
                                 .build()))
                 .flatMap(extrato -> transacaoRepository.findByClienteID(clienteID)
                         .cache()
-                        .subscribeOn(Schedulers.boundedElastic())
+                        .subscribeOn(Schedulers.parallel())
                         .collectList()
                         .map(transacoes -> extrato.transacoes(transacoes).build()));
     }
