@@ -10,4 +10,4 @@ FROM amazoncorretto:21-alpine
 
 COPY --from=builder /builder/build/libs/application.jar /app.jar
 
-ENTRYPOINT ["java", "-jar", "app.jar", "-Xms100m", "-Xmx300m", "-XX:+UseConcMarkSweepGC"]
+ENTRYPOINT ["java", "-jar", "app.jar", "-Xms50m", "-Xmx300m", "-XX:MaxMetaspaceSize=256m", "-XX:+UseShenandoahGC"]
