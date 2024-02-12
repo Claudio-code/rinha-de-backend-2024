@@ -1,7 +1,5 @@
 package com.rinha.backend.controller;
 
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,7 +40,6 @@ public class ClientesController {
     }
 
     @GetMapping("{id}/extrato")
-    @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
     public Mono<ExtratoResponseDto> extrato(@PathVariable("id") @Valid final Integer clienteID) {
         return service.extrato(clienteID);
     }
