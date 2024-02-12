@@ -17,6 +17,7 @@ import java.util.Objects;
 
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @RequiredArgsConstructor
 @Service
@@ -24,7 +25,8 @@ public class TransacaoService {
     private final ClientesRepository clientesRepository;
     private final TransacoesRepository transacaoRepository;
 
-    public synchronized Mono<TransacaoResponseDto> fazerTransacao(final int clienteID, final TransacaoRequestDto transacaoDto) {
+    public synchronized Mono<TransacaoResponseDto> fazerTransacao(final int clienteID,
+            final TransacaoRequestDto transacaoDto) {
         final var transacoes = Transacoes.builder()
                 .clienteID(clienteID)
                 .tipo(transacaoDto.tipo())
@@ -32,8 +34,10 @@ public class TransacaoService {
                 .valor(transacaoDto.valor())
                 .realizadaEm(Instant.now())
                 .build();
-        final var trasacaoPublisher = transacaoRepository.save(transacoes);
+        final var trasacaoPublisher = transacaoRepository.save(transacoes)
+            .subscribeOn(Schedulers.parallel());
         return clientesRepository.findById(clienteID)
+                .subscribeOn(Schedulers.boundedElastic())
                 .switchIfEmpty(Mono.error(new NotFoundException()))
                 .flatMap(cliente -> {
                     if (Objects.equals(TipoTransacao.CREDITO.getTipo(), transacaoDto.tipo())) {
@@ -53,20 +57,19 @@ public class TransacaoService {
 
     public Mono<ExtratoResponseDto> extrato(final int clienteID) {
         return clientesRepository.findById(clienteID)
+                .cache()
+                .subscribeOn(Schedulers.boundedElastic())
                 .switchIfEmpty(Mono.error(new NotFoundException()))
-                .map(cliente -> {
-                    final var extratoSaldo = ExtratoResponseDto.ExtratoSaldoDto.builder()
-                            .limite(cliente.getLimite())
-                            .total(cliente.getSaldo())
-                            .dataExtrato(Instant.now())
-                            .build();
-                    return ExtratoResponseDto.builder()
-                            .saldo(extratoSaldo);
-                })
-                .flatMap(extrato -> {
-                    return transacaoRepository.findByClienteID(clienteID)
-                            .collectList()
-                            .map(transacoes -> extrato.transacoes(transacoes).build());
-                });
+                .map(cliente -> ExtratoResponseDto.builder()
+                        .saldo(ExtratoResponseDto.ExtratoSaldoDto.builder()
+                                .limite(cliente.getLimite())
+                                .total(cliente.getSaldo())
+                                .dataExtrato(Instant.now())
+                                .build()))
+                .flatMap(extrato -> transacaoRepository.findByClienteID(clienteID)
+                        .cache()
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .collectList()
+                        .map(transacoes -> extrato.transacoes(transacoes).build()));
     }
 }
