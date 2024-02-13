@@ -5,6 +5,7 @@ import java.time.Instant;
 import org.springframework.core.codec.DecodingException;
 import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -82,6 +83,7 @@ public class ClientesController {
 	}
 
 	@GetMapping("{id}/extrato")
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public Mono<ExtratoResponseDto> extrato(@PathVariable("id") @Valid final Integer clienteID)
 			throws ChangeSetPersister.NotFoundException {
 		if (clienteID < 1 || clienteID > 5) {
