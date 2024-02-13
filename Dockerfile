@@ -24,4 +24,4 @@ RUN chmod 775 /work
 
 EXPOSE 8080
 
-CMD ["./backend", "-Xmx120M", "-Xms50M", "-gc=G1"]
+CMD ["./backend", "-Xmx170M", "-Xms50M", "-Xss256k"]
