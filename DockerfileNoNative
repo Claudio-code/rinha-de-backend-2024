@@ -8,6 +8,9 @@ RUN ./gradlew build -x test
 
 FROM amazoncorretto:21-alpine
 
-COPY --from=builder /builder/build/libs/application.jar /app.jar
+COPY --from=builder /builder/build/libs/application.jar /application.jar
 
-CMD ["java -server -Xms50m -Xmx100M -XX:MaxMetaspaceSize=256m -Xss516k -XX:+UseSerialGC -jar app.jar"]
+ENV JAVA_OPTS="-Xmx100m"
+
+ENTRYPOINT ["java", "-Xms50m", "-Xmx100m", "-XX:+UseSerialGC","-jar", "application.jar"]
+
