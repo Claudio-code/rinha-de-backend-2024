@@ -38,7 +38,7 @@ public class ClientesController {
 	private final TransacoesRepository transacaoRepository;
 
 	@PostMapping("{id}/transacoes")
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public Mono<ResponseEntity<TransacaoResponseDto>> fazerTransacao(
 			@PathVariable("id") @Valid final Integer clienteID,
 			@RequestBody @Valid final TransacaoRequestDto transacaoDto) {
