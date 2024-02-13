@@ -1,5 +1,6 @@
 package com.rinha.backend.entity;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -14,6 +15,7 @@ import lombok.Setter;
 @Builder
 @Getter
 @Setter
+@Cacheable
 @Table("clientes")
 public class Clientes {
     @Id
@@ -28,9 +30,5 @@ public class Clientes {
 
     public void removerSaldo(final Integer valor) {
         saldo -= valor;
-    }
-
-    public boolean verificarSeSaldoEstaInconsistente() {
-        return saldo < -limite;
     }
 }

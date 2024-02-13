@@ -2,6 +2,7 @@ package com.rinha.backend.entity;
 
 import java.time.Instant;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -20,6 +21,7 @@ import lombok.Setter;
 @Builder
 @Getter
 @Setter
+@Cacheable
 @Table("transacoes")
 public class Transacoes {
     @Id

@@ -1,8 +1,8 @@
 package com.rinha.backend.controller;
 
 import java.time.Instant;
-import java.util.Objects;
 
+import org.springframework.core.codec.DecodingException;
 import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +15,6 @@ import com.rinha.backend.dto.ExtratoResponseDto;
 import com.rinha.backend.dto.TransacaoRequestDto;
 import com.rinha.backend.dto.TransacaoResponseDto;
 import com.rinha.backend.entity.Transacoes;
-import com.rinha.backend.enums.TipoTransacao;
 import com.rinha.backend.exceptions.SaldoInconsistenteException;
 import com.rinha.backend.exceptions.TipoErradoException;
 import com.rinha.backend.repository.ClientesRepository;
@@ -37,7 +36,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RequiredArgsConstructor
 @RequestMapping("clientes")
 public class ClientesController {
-    private final ClientesRepository clientesRepository;
+	private final ClientesRepository clientesRepository;
 	private final TransacoesRepository transacaoRepository;
 
 	@PostMapping("{id}/transacoes")
@@ -49,30 +48,30 @@ public class ClientesController {
 		if (clienteID < 1 || clienteID > 5) {
 			throw new ChangeSetPersister.NotFoundException();
 		}
-		if ((!TipoTransacao.isValidType(transacaoDto.tipo())) ||
+		if ((!transacaoDto.tipo().equals("d") && !transacaoDto.tipo().equals("c")) ||
 				transacaoDto.tipo().chars().count() > 1 ||
+				transacaoDto.valor() <= 0 ||
 				transacaoDto.descricao().chars().count() > 10) {
 			throw new TipoErradoException();
 		}
-
-		final var transacoes = Transacoes.builder()
+		final var trasacaoPublisher = transacaoRepository.save(Transacoes.builder()
 				.clienteID(clienteID)
 				.tipo(transacaoDto.tipo())
 				.descricao(transacaoDto.descricao())
 				.valor(transacaoDto.valor())
 				.realizadaEm(Instant.now())
-				.build();
-		final var trasacaoPublisher = transacaoRepository.save(transacoes).subscribeOn(Schedulers.parallel());
+				.build())
+				.subscribeOn(Schedulers.parallel());
 		return clientesRepository.findById(clienteID)
 				.subscribeOn(Schedulers.parallel())
 				.switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()))
 				.flatMap(cliente -> {
-					if (Objects.equals(TipoTransacao.CREDITO.getTipo(), transacaoDto.tipo())) {
+					if (transacaoDto.tipo().equals("c")) {
 						cliente.adicionarSaldo(transacaoDto.valor());
 					} else {
 						cliente.removerSaldo(transacaoDto.valor());
 					}
-					if (cliente.verificarSeSaldoEstaInconsistente()) {
+					if (transacaoDto.valor() > (cliente.getSaldo() + cliente.getLimite())) {
 						return Mono.error(new SaldoInconsistenteException());
 					}
 					return Mono.just(cliente);
@@ -103,6 +102,12 @@ public class ClientesController {
 						.subscribeOn(Schedulers.parallel())
 						.collectList()
 						.map(transacoes -> extrato.transacoes(transacoes).build()));
+	}
+
+	@ExceptionHandler(DecodingException.class)
+	@ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+	public Mono<Void> handleValidationDecode() {
+		return Mono.empty();
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
