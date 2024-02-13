@@ -58,10 +58,8 @@ public class ClientesController {
 				.descricao(transacaoDto.descricao())
 				.valor(transacaoValor)
 				.realizadaEm(Instant.now())
-				.build())
-				.subscribeOn(Schedulers.parallel());
+				.build());
 		return clientesRepository.findById(clienteID)
-				.subscribeOn(Schedulers.parallel())
 				.switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()))
 				.flatMap(cliente -> {
 					if (transacaoDto.tipo().equals("c")) {
