@@ -10,7 +10,6 @@ import com.rinha.backend.repository.TransacoesRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.codec.DecodingException;
-import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Isolation;
@@ -60,7 +59,6 @@ public class ClientesController {
 				.realizadaEm(Instant.now())
 				.build());
 		return clientesRepository.findById(clienteID)
-				.switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()))
 				.flatMap(cliente -> {
 					if (transacaoDto.tipo().equals("c")) {
 						cliente.adicionarSaldo(transacaoValor);
@@ -87,7 +85,6 @@ public class ClientesController {
 		return clientesRepository.findById(clienteID)
 				.cache()
 				.subscribeOn(Schedulers.parallel())
-				.switchIfEmpty(Mono.error(new ChangeSetPersister.NotFoundException()))
 				.map(cliente -> ExtratoResponseDto.builder()
 						.saldo(ExtratoResponseDto.ExtratoSaldoDto.builder()
 								.limite(cliente.getLimite())
