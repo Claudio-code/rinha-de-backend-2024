@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS clientes (
 	saldo int DEFAULT 0
 );
 
--- CREATE INDEX IF NOT EXISTS clientes_id ON clientes (id desc) INCLUDE (nome, limite, saldo);
+CREATE INDEX IF NOT EXISTS clientes_id ON clientes (id);
 
 
 INSERT INTO clientes (nome, limite)
@@ -29,5 +29,5 @@ CREATE TABLE IF NOT EXISTS transacoes (
 		FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 );
 
-CREATE INDEX IF NOT EXISTS transacoes_clientes_id ON transacoes (cliente_id desc);
+CREATE INDEX IF NOT EXISTS transacoes_clientes_id ON transacoes (cliente_id);
 
