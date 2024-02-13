@@ -14,7 +14,7 @@ services:
       - rinha-db:/data/postgres
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
       # - ./postgresql.conf:/etc/postgresql/postgresql.conf
-    command: postgres -c checkpoint_timeout=600 -c max_wal_size=4096 -c synchronous_commit=0 -c full_page_writes=0
+    command: ["postgres", "-c", "logging_collector=false", "-c", "max_connections=30"]
     healthcheck:
       test: [ 'CMD', 'pg_isready' ]
       interval: 10s
@@ -24,7 +24,7 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: "140MB"
+          memory: "240MB"
 
   nginx:
     image: nginx:latest
@@ -42,7 +42,7 @@ services:
           memory: '50MB'
 
   api01: &api
-    image: claudio2424/rinha-spring:latest
+    image: claudio2424/rinha-spring:native
     hostname: api01
     ports:
       - "6969:6969"
@@ -52,7 +52,7 @@ services:
       resources:
         limits:
           cpus: "0.8"
-          memory: "600MB"
+          memory: "125MB"
 
   api02:
     <<: *api 
