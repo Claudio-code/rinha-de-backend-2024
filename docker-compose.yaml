@@ -14,7 +14,7 @@ services:
       - rinha-db:/data/postgres
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
       # - ./postgresql.conf:/etc/postgresql/postgresql.conf
-    command: ["postgres", "-c", "logging_collector=false", "-c", "max_connections=30"]
+    command: postgres -c checkpoint_timeout=600 -c max_wal_size=4096 -c synchronous_commit=0 -c full_page_writes=0
     healthcheck:
       test: [ 'CMD', 'pg_isready' ]
       interval: 10s
@@ -24,7 +24,7 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: "240MB"
+          memory: "140MB"
 
   nginx:
     image: nginx:latest
@@ -52,7 +52,7 @@ services:
       resources:
         limits:
           cpus: "0.8"
-          memory: "125MB"
+          memory: "175MB"
 
   api02:
     <<: *api 
@@ -60,16 +60,16 @@ services:
     ports:
       - "9696:6969"
 
-  pgAdmin:
-    image: dpage/pgadmin4
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-      # PGADMIN_LISTEN_PORT: 5050
-    ports:
-      - "5050:80"
-    depends_on:
-      - rinha-postgres
+#  pgAdmin:
+#    image: dpage/pgadmin4
+#    environment:
+#      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+#      PGADMIN_DEFAULT_PASSWORD: admin
+#      # PGADMIN_LISTEN_PORT: 5050
+#    ports:
+#      - "5050:80"
+#    depends_on:
+#      - rinha-postgres
 
 volumes:
   rinha-db:
