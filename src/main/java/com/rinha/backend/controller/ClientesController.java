@@ -1,6 +1,7 @@
 package com.rinha.backend.controller;
 
 import com.rinha.backend.dto.ExtratoResponseDto;
+import com.rinha.backend.entity.Clientes;
 import com.rinha.backend.entity.Transacoes;
 import com.rinha.backend.exceptions.SaldoInconsistenteException;
 import com.rinha.backend.repository.ClientesRepository;
@@ -14,6 +15,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.validator.constraints.Length;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.codec.DecodingException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -53,6 +55,13 @@ public class ClientesController {
 		if (clienteID < 1 || clienteID > 5) {
 			return Mono.just(ResponseEntity.notFound().build());
 		}
+		final var trasacaoPublisher = transacaoRepository.save(Transacoes.builder()
+				.clienteID(clienteID)
+				.tipo(transacaoDto.tipo())
+				.descricao(transacaoDto.descricao())
+				.valor(transacaoDto.valor())
+				.realizadaEm(Instant.now())
+				.build());
 		return clientesRepository.findById(clienteID)
 				.flatMap(cliente -> {
 					if (transacaoDto.tipo().equals("c")) {
@@ -65,17 +74,8 @@ public class ClientesController {
 					}
 					return Mono.just(cliente);
 				})
-				.flatMap(client -> Flux
-                        .combineLatest(clientesRepository.save(client),
-                                transacaoRepository.save(Transacoes.builder()
-                                        .clienteID(clienteID)
-                                        .tipo(transacaoDto.tipo())
-                                        .descricao(transacaoDto.descricao())
-                                        .valor(transacaoDto.valor())
-                                        .realizadaEm(Instant.now())
-                                        .build()),
-                                (cliente, trans) -> cliente)
-                        .single())
+				.flatMap(clientesRepository::save)
+				.flatMap(trasacaoPublisher::thenReturn)
 				.flatMap(cliente -> Mono
 						.just(ResponseEntity.ok(new TransacaoResponseDto(cliente.getLimite(), cliente.getSaldo()))))
 				.onErrorResume(throwable -> Mono.just(ResponseEntity.unprocessableEntity().build()));
