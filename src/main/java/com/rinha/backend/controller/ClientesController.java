@@ -1,15 +1,21 @@
 package com.rinha.backend.controller;
 
 import com.rinha.backend.dto.ExtratoResponseDto;
-import com.rinha.backend.dto.TransacaoRequestDto;
-import com.rinha.backend.dto.TransacaoResponseDto;
 import com.rinha.backend.entity.Transacoes;
 import com.rinha.backend.exceptions.SaldoInconsistenteException;
 import com.rinha.backend.repository.ClientesRepository;
+import com.rinha.backend.repository.TransacoesPageableRepository;
 import com.rinha.backend.repository.TransacoesRepository;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.validator.constraints.Length;
 import org.springframework.core.codec.DecodingException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Isolation;
@@ -23,8 +29,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.support.WebExchangeBindException;
 
+import org.springframework.web.bind.support.WebExchangeBindException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -37,6 +43,7 @@ import java.time.Instant;
 public class ClientesController {
 	private final ClientesRepository clientesRepository;
 	private final TransacoesRepository transacaoRepository;
+	private final TransacoesPageableRepository transacoesPageableRepository;
 
 	@PostMapping("{id}/transacoes")
 	@Transactional(isolation = Isolation.READ_COMMITTED)
@@ -46,38 +53,29 @@ public class ClientesController {
 		if (clienteID < 1 || clienteID > 5) {
 			return Mono.just(ResponseEntity.notFound().build());
 		}
-		if ((!transacaoDto.tipo().equals("d") && !transacaoDto.tipo().equals("c")) ||
-				transacaoDto.tipo().chars().count() > 1 ||
-				transacaoDto.valor().equals("1.2") ||
-				transacaoDto.descricao().chars().count() > 10) {
-			return Mono.just(ResponseEntity.unprocessableEntity().build());
-		}
-		final var transacaoValor = Integer.parseInt(transacaoDto.valor());
 		return clientesRepository.findById(clienteID)
 				.flatMap(cliente -> {
 					if (transacaoDto.tipo().equals("c")) {
-						cliente.adicionarSaldo(transacaoValor);
+						cliente.adicionarSaldo(transacaoDto.valor());
 					} else {
-						cliente.removerSaldo(transacaoValor);
+						cliente.removerSaldo(transacaoDto.valor());
 					}
-					if (transacaoValor > (cliente.getSaldo() + cliente.getLimite())) {
+					if (transacaoDto.valor() > (cliente.getSaldo() + cliente.getLimite())) {
 						return Mono.error(new SaldoInconsistenteException());
 					}
 					return Mono.just(cliente);
 				})
-				.flatMap(client -> {
-					return Flux
-							.combineLatest(clientesRepository.save(client),
-									transacaoRepository.save(Transacoes.builder()
-											.clienteID(clienteID)
-											.tipo(transacaoDto.tipo())
-											.descricao(transacaoDto.descricao())
-											.valor(transacaoValor)
-											.realizadaEm(Instant.now())
-											.build()),
-									(cliente, trans) -> cliente)
-							.single();
-				})
+				.flatMap(client -> Flux
+                        .combineLatest(clientesRepository.save(client),
+                                transacaoRepository.save(Transacoes.builder()
+                                        .clienteID(clienteID)
+                                        .tipo(transacaoDto.tipo())
+                                        .descricao(transacaoDto.descricao())
+                                        .valor(transacaoDto.valor())
+                                        .realizadaEm(Instant.now())
+                                        .build()),
+                                (cliente, trans) -> cliente)
+                        .single())
 				.flatMap(cliente -> Mono
 						.just(ResponseEntity.ok(new TransacaoResponseDto(cliente.getLimite(), cliente.getSaldo()))))
 				.onErrorResume(throwable -> Mono.just(ResponseEntity.unprocessableEntity().build()));
@@ -98,7 +96,8 @@ public class ClientesController {
 								.total(cliente.getSaldo())
 								.dataExtrato(Instant.now())
 								.build()))
-				.flatMap(extrato -> transacaoRepository.findByClienteID(clienteID)
+				.flatMap(extrato ->
+						transacoesPageableRepository.findByClienteID(clienteID, PageRequest.of(0, 10))
 						.cache()
 						.subscribeOn(Schedulers.parallel())
 						.collectList()
@@ -107,21 +106,19 @@ public class ClientesController {
 				.onErrorResume(throwable -> Mono.just(ResponseEntity.unprocessableEntity().build()));
 	}
 
-	@ExceptionHandler(DecodingException.class)
+	public record TransacaoRequestDto(
+			@NotNull  @Min(0) Integer valor,
+			@NotNull @NotEmpty @Pattern(regexp = "[c|d]") String tipo,
+			@NotNull @NotEmpty @NotBlank @Length(max = 10) String descricao) {
+	}
+
+	public record TransacaoResponseDto(Integer limite, Integer saldo) {
+	}
+
+
+	@ExceptionHandler({DecodingException.class, MethodArgumentNotValidException.class, WebExchangeBindException.class})
 	@ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
 	public Mono<Void> handleValidationDecode() {
-		return Mono.empty();
-	}
-
-	@ExceptionHandler(MethodArgumentNotValidException.class)
-	@ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-	public Mono<Void> handleValidationExceptions() {
-		return Mono.empty();
-	}
-
-	@ExceptionHandler(WebExchangeBindException.class)
-	@ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-	public Mono<Void> handleRequestBodyParams() {
 		return Mono.empty();
 	}
 }
