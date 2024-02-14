@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.support.WebExchangeBindException;
+
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -51,13 +53,6 @@ public class ClientesController {
 			return Mono.just(ResponseEntity.unprocessableEntity().build());
 		}
 		final var transacaoValor = Integer.parseInt(transacaoDto.valor());
-		final var trasacaoPublisher = transacaoRepository.save(Transacoes.builder()
-				.clienteID(clienteID)
-				.tipo(transacaoDto.tipo())
-				.descricao(transacaoDto.descricao())
-				.valor(transacaoValor)
-				.realizadaEm(Instant.now())
-				.build());
 		return clientesRepository.findById(clienteID)
 				.flatMap(cliente -> {
 					if (transacaoDto.tipo().equals("c")) {
@@ -70,9 +65,21 @@ public class ClientesController {
 					}
 					return Mono.just(cliente);
 				})
-				.flatMap(clientesRepository::save)
-				.flatMap(trasacaoPublisher::thenReturn)
-				.flatMap(cliente -> Mono.just(ResponseEntity.ok(new TransacaoResponseDto(cliente.getLimite(), cliente.getSaldo()))))
+				.flatMap(client -> {
+					return Flux
+							.combineLatest(clientesRepository.save(client),
+									transacaoRepository.save(Transacoes.builder()
+											.clienteID(clienteID)
+											.tipo(transacaoDto.tipo())
+											.descricao(transacaoDto.descricao())
+											.valor(transacaoValor)
+											.realizadaEm(Instant.now())
+											.build()),
+									(cliente, trans) -> cliente)
+							.single();
+				})
+				.flatMap(cliente -> Mono
+						.just(ResponseEntity.ok(new TransacaoResponseDto(cliente.getLimite(), cliente.getSaldo()))))
 				.onErrorResume(throwable -> Mono.just(ResponseEntity.unprocessableEntity().build()));
 	}
 
